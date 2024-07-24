@@ -223,6 +223,11 @@ class EmulatorJS {
         this.settingsLanguage = window.EJS_settingsLanguage || false;
         this.config = config;
         this.currentPopup = null;
+        if (window.EJS_CapturePointer !== undefined) {
+            this.isPointerCapture = window.EJS_CapturePointer;
+        } else {
+            this.isPointerCapture = false;
+        }
         this.isFastForward = false;
         this.isSlowMotion = false;
         this.rewindEnabled = this.preGetSetting("rewindEnabled") === 'enabled';
@@ -1716,13 +1721,10 @@ class EmulatorJS {
             }
             this.gameManager.toggleMainLoop(this.paused ? 0 : 1);
             
-            //I now realize its not easy to pause it while the cursor is locked, just in case I guess
-            if (this.getCore(true) === "nds") {
-                if (this.canvas.exitPointerLock) {
-                    this.canvas.exitPointerLock();
-                } else if (this.canvas.mozExitPointerLock) {
-                    this.canvas.mozExitPointerLock();
-                }
+            if (this.canvas.exitPointerLock) {
+                this.canvas.exitPointerLock();
+            } else if (this.canvas.mozExitPointerLock) {
+                this.canvas.mozExitPointerLock();
             }
         }
         this.play = (dontUpdate) => {
@@ -1942,11 +1944,13 @@ class EmulatorJS {
 
         this.addEventListener(this.canvas, "click", (e) => {
             if (e.pointerType === "touch") return;
-            if (this.getCore(true) === "nds" && !this.paused) {
-                if (this.canvas.requestPointerLock) {
-                    this.canvas.requestPointerLock();
-                } else if (this.canvas.mozRequestPointerLock) {
-                    this.canvas.mozRequestPointerLock();
+            if (!this.paused) {
+                if (this.isPointerCapture === true) {
+                    if (this.canvas.requestPointerLock) {
+                        this.canvas.requestPointerLock();
+                    } else if (this.canvas.mozRequestPointerLock) {
+                        this.canvas.mozRequestPointerLock();
+                    }
                 }
                 this.menu.close();
             }
@@ -3932,6 +3936,12 @@ class EmulatorJS {
             if (this.rewindEnabled) {
                 this.gameManager.setRewindGranularity(parseInt(value));
             }
+        } else if (option === "capturepointer") {
+            if (value === "enabled") {
+                this.isPointerCapture = true;
+            } else {
+                this.isPointerCapture = false;
+            }
         } else if (option === "vsync") {
             this.gameManager.setVSync(value === "enabled");
         }
@@ -4305,6 +4315,11 @@ class EmulatorJS {
             'disabed': this.localization("Disabled")
         }, ["n64", "psx", "nds"].includes(this.getCore(true)) ? "enabled" : "disabed");
         
+        addToMenu(this.localization('Capture Pointer'), 'capturepointer', {
+            'enabled': this.localization("Enabled"),
+            'disabled': this.localization("Disabled")
+        }, "disabled");
+    
         addToMenu(this.localization('FPS'), 'fps', {
             'show': this.localization("show"),
             'hide': this.localization("hide")
